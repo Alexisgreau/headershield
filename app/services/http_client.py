@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import httpx
 
@@ -12,6 +13,7 @@ class HTTPService:
     def __init__(self) -> None:
         self.timeout = settings.request_timeout_seconds
         self.retries = settings.retries
+        self.logger = logging.getLogger(__name__)
 
     async def fetch(self, url: str) -> tuple[httpx.Response | None, list[str], str | None]:
         history: list[str] = []
@@ -29,6 +31,13 @@ class HTTPService:
             for attempt in range(self.retries):
                 try:
                     resp = await client.get(url)
+                    self.logger.info(
+                        "Fetched %s -> %s (status=%s, attempt=%s)",
+                        url,
+                        resp.url,
+                        resp.status_code,
+                        attempt + 1,
+                    )
                     # record history
                     history = [str(r.url) for r in resp.history] + [str(resp.url)]
                     # best-effort TLS version (if https)
@@ -42,5 +51,12 @@ class HTTPService:
                     return resp, history, tls_version
                 except Exception as exc:  # network errors
                     last_exc = exc
+                    self.logger.warning(
+                        "Fetch failed for %s (attempt %s/%s): %s",
+                        url,
+                        attempt + 1,
+                        self.retries,
+                        exc,
+                    )
                     await asyncio.sleep(0.5 * (2**attempt))
         raise httpx.HTTPError(f"Failed to fetch {url}: {last_exc}")
