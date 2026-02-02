@@ -61,5 +61,46 @@
     <li>HTTP→HTTPS redirect: {{ 'Yes' if scan.http_to_https_redirect else 'No' }}</li>
   </ul>
 
+  <h2 class="text-xl font-semibold mt-6 mb-2">Redirect Chains</h2>
+  <div class="grid gap-4 md:grid-cols-2 text-sm text-gray-700">
+    <div class="bg-gray-50 rounded p-3">
+      <div class="font-semibold">HTTPS</div>
+      {% if raw_meta.get('https') %}
+        <div>Status: {{ raw_meta['https'].get('status', '—') }}</div>
+        <div>Final URL: {{ raw_meta['https'].get('final_url', '—') }}</div>
+        <div class="mt-2 font-medium">History</div>
+        <ol class="list-decimal pl-5">
+          {% for hop in raw_meta['https'].get('history', []) %}
+            <li class="break-all">{{ hop }}</li>
+          {% endfor %}
+          {% if not raw_meta['https'].get('history') %}
+            <li>—</li>
+          {% endif %}
+        </ol>
+      {% else %}
+        <div>No HTTPS metadata available.</div>
+      {% endif %}
+    </div>
+
+    <div class="bg-gray-50 rounded p-3">
+      <div class="font-semibold">HTTP</div>
+      {% if raw_meta.get('http') %}
+        <div>Status: {{ raw_meta['http'].get('status', '—') }}</div>
+        <div>Final URL: {{ raw_meta['http'].get('final_url', '—') }}</div>
+        <div class="mt-2 font-medium">History</div>
+        <ol class="list-decimal pl-5">
+          {% for hop in raw_meta['http'].get('history', []) %}
+            <li class="break-all">{{ hop }}</li>
+          {% endfor %}
+          {% if not raw_meta['http'].get('history') %}
+            <li>—</li>
+          {% endif %}
+        </ol>
+      {% else %}
+        <div>No HTTP metadata available.</div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 {% endblock %}
