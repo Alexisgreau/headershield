@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from http.cookies import SimpleCookie
 
 from sqlmodel import select
@@ -28,6 +29,7 @@ SECURITY_HEADERS = [
     "Server",
     "X-Powered-By",
 ]
+logger = logging.getLogger(__name__)
 
 
 async def scan_urls(urls: list[str]) -> dict[str, int]:
@@ -79,8 +81,9 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
                 for h in SECURITY_HEADERS:
                     header_values[h] = resp_https.headers.get(h)
                 cookie_headers.extend(resp_https.headers.get_list("set-cookie"))
-        except Exception:
-            raw_meta["https_error"] = f"Failed to fetch {https_url}"
+        except Exception as exc:
+            raw_meta["https_error"] = f"Failed to fetch {https_url}: {exc}"
+            logger.warning("HTTPS fetch failed for %s: %s", https_url, exc)
 
         try:
             # fetch HTTP (to detect redirect)
@@ -93,8 +96,9 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
             }
             if resp_http is not None and str(resp_http.url).startswith("https://"):
                 http_redirects_to_https = True
-        except Exception:
-            raw_meta["http_error"] = f"Failed to fetch {http_url}"
+        except Exception as exc:
+            raw_meta["http_error"] = f"Failed to fetch {http_url}: {exc}"
+            logger.warning("HTTP fetch failed for %s: %s", http_url, exc)
 
         # Scoring (base 100, pénalités, clamped 0–100)
         score = 100

@@ -89,5 +89,6 @@ def scan_detail(request: Request, scan_id: int):
                 "header_findings": header_findings,
                 "cookie_findings": cookie_findings,
                 "target_url": target_url,
+                "raw_meta": scan.raw_response_meta or {},
             },
         )
