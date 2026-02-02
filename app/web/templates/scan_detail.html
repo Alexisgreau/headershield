@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-6 rounded shadow">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold">Scan #{{ scan.id }}</h1>
+    <div class="space-x-2">
+      <a href="/api/v1/export/csv?scan_id={{scan.id}}" class="px-3 py-2 bg-gray-800 text-white rounded">Export CSV</a>
+      <a href="/api/v1/export/pdf?scan_id={{scan.id}}" class="px-3 py-2 bg-gray-800 text-white rounded">Export PDF</a>
+    </div>
+  </div>
+  <p class="text-gray-600">Target: {{ target_url }}</p>
+  <div class="my-4">
+    <div class="text-sm">Score</div>
+    <div class="text-3xl font-bold">{{ scan.score_total }}</div>
+    <div class="text-sm text-gray-500">Status: {{ scan.status }}</div>
+  </div>
+
+  <h2 class="text-xl font-semibold mt-6 mb-2">Security Headers</h2>
+  <div class="divide-y">
+    {% for f in header_findings %}
+    <div class="py-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-mono">{{ f.header_name }}</div>
+          <div class="text-gray-600 text-sm">{{ f.value or '—' }}</div>
+        </div>
+        <div>
+          <span class="px-2 py-1 rounded {{ 'bg-green-100 text-green-700' if f.status=='OK' else 'bg-yellow-100 text-yellow-700' if f.status=='WEAK' else 'bg-red-100 text-red-700' }}">{{ f.status }}</span>
+        </div>
+      </div>
+      {% if f.recommendation %}
+      <pre class="bg-gray-100 p-2 rounded mt-2 text-xs overflow-x-auto">{{ f.recommendation }}</pre>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2 class="text-xl font-semibold mt-6 mb-2">Cookies</h2>
+  <div class="divide-y">
+    {% for c in cookie_findings %}
+    <div class="py-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-mono">{{ c.cookie_name }}</div>
+          <div class="text-gray-600 text-sm">Secure={{ c.has_secure }} HttpOnly={{ c.has_httponly }} SameSite={{ c.samesite }}</div>
+        </div>
+        <div>
+          <span class="px-2 py-1 rounded {{ 'bg-green-100 text-green-700' if c.status=='OK' else 'bg-yellow-100 text-yellow-700' }}">{{ c.status }}</span>
+        </div>
+      </div>
+      {% if c.recommendation %}
+      <pre class="bg-gray-100 p-2 rounded mt-2 text-xs overflow-x-auto">{{ c.recommendation }}</pre>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2 class="text-xl font-semibold mt-6 mb-2">TLS / Redirects</h2>
+  <ul class="list-disc pl-6 text-sm text-gray-700">
+    <li>HTTPS available: {{ 'Yes' if scan.tls_enforced else 'No' }}</li>
+    <li>HTTP→HTTPS redirect: {{ 'Yes' if scan.http_to_https_redirect else 'No' }}</li>
+  </ul>
+
+</div>
+{% endblock %}

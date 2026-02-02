@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-6 rounded shadow">
+  <h1 class="text-2xl font-semibold mb-2">Recent Scans</h1>
+  <div class="text-sm text-gray-700 mb-4 bg-blue-50 border border-blue-100 p-3 rounded">
+    Score is 0–100 (higher is better). Issues count missing/weak security headers and cookie flag problems. TLS indicates HTTPS availability; Redirect indicates HTTP→HTTPS.
+  </div>
+  <div class="mb-3 flex gap-3">
+    <input id="filterScore" type="number" min="0" max="100" class="border p-2 rounded" placeholder="Min score" />
+    <select id="filterStatus" class="border p-2 rounded">
+      <option value="">All status</option>
+      <option>SUCCESS</option>
+      <option>FAIL</option>
+      <option>PARTIAL</option>
+    </select>
+  </div>
+  <table class="min-w-full text-sm">
+    <thead>
+      <tr class="text-left text-gray-500">
+        <th class="py-2">ID</th>
+        <th>URL</th>
+        <th title="0–100">Score</th>
+        <th>Status</th>
+        <th>Issues</th>
+        <th title="HTTPS available">TLS</th>
+        <th title="HTTP→HTTPS redirect present">Redirect</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="scanTable">
+      {% for s in scans %}
+      <tr class="border-t hover:bg-gray-50">
+        <td class="py-2"><a href="/scan/{{s.id}}" class="text-blue-600">#{{s.id}}</a></td>
+        <td>{{ targets_by_id.get(s.target_id, s.target_id) }}</td>
+        <td><span class="px-2 py-1 rounded {{ 'bg-green-100 text-green-700' if s.score_total >= 80 else 'bg-yellow-100 text-yellow-700' if s.score_total >= 50 else 'bg-red-100 text-red-700' }}" title="Overall security score">{{ s.score_total }}</span></td>
+        <td>
+          <span class="px-2 py-1 rounded text-xs {{ 'bg-green-100 text-green-700' if s.status=='SUCCESS' else 'bg-yellow-100 text-yellow-700' if s.status=='PARTIAL' else 'bg-red-100 text-red-700' }}">{{ s.status }}</span>
+        </td>
+        {% set ib = issues_by_scan.get(s.id, {}) %}
+        <td>
+          <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800" title="Number of required headers not present">Missing headers: {{ ib.get('headers_missing', 0) }}</span>
+          <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800" title="Headers present but too permissive or with weak values">Weak headers: {{ ib.get('headers_weak', 0) }}</span>
+          <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800" title="Cookies without Secure/HttpOnly or SameSite issues">Cookie issues: {{ ib.get('cookies_weak', 0) }}</span>
+        </td>
+        <td>
+          <span class="px-2 py-0.5 rounded {{ 'bg-green-100 text-green-700' if s.tls_enforced else 'bg-red-100 text-red-700' }}" title="HTTPS available">{{ 'Yes' if s.tls_enforced else 'No' }}</span>
+        </td>
+        <td>
+          <span class="px-2 py-0.5 rounded {{ 'bg-green-100 text-green-700' if s.http_to_https_redirect else 'bg-red-100 text-red-700' }}" title="HTTP→HTTPS redirect">{{ 'Yes' if s.http_to_https_redirect else 'No' }}</span>
+        </td>
+        <td>{{ s.started_at }}</td>
+        <td><a class="text-blue-600" href="/scan/{{s.id}}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

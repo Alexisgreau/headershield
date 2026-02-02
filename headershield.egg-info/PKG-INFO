@@ -1,0 +1,80 @@
+Metadata-Version: 2.4
+Name: headershield
+Version: 0.1.0
+Summary: Audit HTTP security headers, score, and recommend fixes (FastAPI + Tailwind)
+Author: headershield
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.111
+Requires-Dist: uvicorn[standard]>=0.30
+Requires-Dist: httpx>=0.27
+Requires-Dist: sqlmodel>=0.0.16
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: jinja2>=3.1
+Requires-Dist: python-multipart>=0.0.9
+Requires-Dist: typer>=0.12
+Requires-Dist: reportlab>=4.1
+Requires-Dist: pydantic>=2.8
+Requires-Dist: itsdangerous>=2.1
+Provides-Extra: dev
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: respx>=0.21; extra == "dev"
+Requires-Dist: httpx>=0.27; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: black>=24.8; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"
+
+# headershield
+
+Audit HTTP security headers for a list of URLs. Calculates a score, stores results in SQLite, provides a REST API, a small Tailwind UI, CLI, and CSV/PDF exports.
+
+## Features
+- Async scanning with httpx (retries, redirects)
+- Score 0–100 with penalties/bonuses; centralized rules
+- Findings with recommendations (Nginx/Apache snippets, CSP template)
+- SQLite persistence via SQLModel
+- REST API + Jinja2 pages (Tailwind via CDN)
+- Exports: CSV and PDF (ReportLab)
+- CLI via `python -m app.cli`
+- Tests (pytest, respx), linters (ruff/black/mypy), pre-commit
+- Dockerized; docker compose up exposes `http://localhost:8000`
+
+## Quickstart
+
+### Local (pip)
+```
+python -m venv .venv && . .venv/Scripts/activate  # or source .venv/bin/activate
+pip install -e .[dev]
+make dev
+```
+Open http://localhost:8000
+
+### Docker
+```
+docker compose up -d --build
+```
+
+### CLI
+```
+python -m app.cli scan --urls https://example.com,https://owasp.org --output out.json
+```
+
+## Tests & Quality
+```
+pytest -q
+make lint
+make fmt
+```
+
+## Environment
+- `HS_DB_PATH` (default: `./data/headershield.db`)
+- Python 3.11
+
+## Documentation
+- See `docs/SECURITY_MODEL.md` for scoring details.
+
+## Notes
+- Tailwind loaded via CDN in templates (no local build step).
+- PDF uses ReportLab to avoid heavy system deps.
+
