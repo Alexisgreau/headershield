@@ -3,9 +3,13 @@
 <div class="bg-white p-6 rounded shadow">
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-semibold">Scan #{{ scan.id }}</h1>
-    <div class="space-x-2">
-      <a href="/api/v1/export/csv?scan_id={{scan.id}}" class="px-3 py-2 bg-gray-800 text-white rounded">Export CSV</a>
-      <a href="/api/v1/export/pdf?scan_id={{scan.id}}" class="px-3 py-2 bg-gray-800 text-white rounded">Export PDF</a>
+    <div class="flex items-center gap-2">
+      <form method="post" action="/scan">
+        <input type="hidden" name="urls" value="{{ target_url }}">
+        <button type="submit" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Re-scan</button>
+      </form>
+      <a href="/api/v1/export/csv?scan_id={{scan.id}}" class="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition">Export CSV</a>
+      <a href="/api/v1/export/pdf?scan_id={{scan.id}}" class="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition">Export PDF</a>
     </div>
   </div>
   <p class="text-gray-600">Target: {{ target_url }}</p>

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import desc
-from sqlmodel import select
+from sqlmodel import select, delete
 
 from ...core.database import get_session
 from ...models.finding import CookieFinding, HeaderFinding
@@ -92,3 +92,17 @@ def scan_detail(request: Request, scan_id: int):
                 "raw_meta": scan.raw_response_meta or {},
             },
         )
+
+
+@router.post("/scan/{scan_id}/delete", response_class=RedirectResponse)
+def scan_delete(request: Request, scan_id: int):
+    with get_session() as session:
+        scan = session.get(Scan, scan_id)
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+
+        session.exec(delete(HeaderFinding).where(HeaderFinding.scan_id == scan_id))
+        session.exec(delete(CookieFinding).where(CookieFinding.scan_id == scan_id))
+        session.delete(scan)
+        session.commit()
+    return RedirectResponse(url="/results", status_code=303)
