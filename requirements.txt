@@ -3,3 +3,8 @@ uvicorn
 httpx
 beautifulsoup4
 pydantic
+sqlmodel
+itsdangerous
+reportlab
+python-multipart
+jinja2
