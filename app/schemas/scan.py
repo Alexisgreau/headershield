@@ -35,6 +35,16 @@ class CookieFindingOut(BaseModel):
     recommendation: str
 
 
+
+
+class HTMLFindingOut(BaseModel):
+    finding_type: str
+    tag: str
+    details: str
+    score_impact: int
+    recommendation: str
+
+
 class ScanOut(BaseModel):
     id: int
     target_url: str
@@ -47,4 +57,5 @@ class ScanOut(BaseModel):
     status: str
     header_findings: list[HeaderFindingOut]
     cookie_findings: list[CookieFindingOut]
+    html_findings: list[HTMLFindingOut]
     raw_response_meta: dict

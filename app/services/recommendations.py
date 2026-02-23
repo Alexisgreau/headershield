@@ -12,6 +12,8 @@ NGINX_SNIPPETS = {
     "corp": "add_header Cross-Origin-Resource-Policy same-site always;",
     "server": "In nginx.conf http block: server_tokens off;",
     "xpb": "For FastCGI: fastcgi_hide_header X-Powered-By; For proxies: proxy_hide_header X-Powered-By;",
+    "xpcdp": "add_header X-Permitted-Cross-Domain-Policies none always;",
+    "clear_site_data": "add_header Clear-Site-Data '\"cache\", \"cookies\", \"storage\"';",
 }
 
 APACHE_SNIPPETS = {
@@ -26,6 +28,8 @@ APACHE_SNIPPETS = {
     "corp": "Header always set Cross-Origin-Resource-Policy same-site",
     "server": "In httpd.conf: ServerTokens Prod",
     "xpb": "Header unset X-Powered-By",
+    "xpcdp": "Header always set X-Permitted-Cross-Domain-Policies 'none'",
+    "clear_site_data": "Header always set Clear-Site-Data '\"cache\", \"cookies\", \"storage\"'",
 }
 
 
@@ -49,6 +53,8 @@ def recommendation_for(header: str) -> str:
         "Cross-Origin-Resource-Policy": "corp",
         "Server": "server",
         "X-Powered-By": "xpb",
+        "X-Permitted-Cross-Domain-Policies": "xpcdp",
+        "Clear-Site-Data": "clear_site_data",
     }
     k = keymap.get(header)
     if not k:
@@ -59,12 +65,13 @@ def recommendation_for(header: str) -> str:
         + ("CSP example: " + csp_example() if k == "csp" else "")
     )
 
+
 HTML_RECOMMENDATIONS = {
     "mixed-content": "Serve all content over HTTPS to prevent attackers from intercepting or modifying it.",
     "sri-missing": "Add a Subresource Integrity (SRI) hash to external scripts and stylesheets. This ensures the file has not been tampered with.",
 }
 
+
 def recommendation_for_html(finding_type: str) -> str:
     """Returns a recommendation for a given HTML finding type."""
     return HTML_RECOMMENDATIONS.get(finding_type, "")
-
