@@ -7,7 +7,7 @@ from sqlalchemy import desc
 from sqlmodel import select, delete
 
 from ...core.database import get_session
-from ...models.finding import CookieFinding, HeaderFinding
+from ...models.finding import CookieFinding, HeaderFinding, HTMLFinding
 from ...models.scan import Scan
 from ...models.target import Target
 from ...services.scanner import scan_urls
@@ -52,11 +52,14 @@ def results(request: Request, min_score: int | None = None, status: str | None =
             headers_missing = sum(1 for f in hfs if f.status == "MISSING")
             headers_weak = sum(1 for f in hfs if f.status == "WEAK")
             cookies_weak = sum(1 for f in cfs if f.status != "OK")
-            total_issues = headers_missing + headers_weak + cookies_weak
+            html_weak = session.exec(select(HTMLFinding).where(HTMLFinding.scan_id == s.id)).all()
+            html_issues = len(html_weak)
+            total_issues = headers_missing + headers_weak + cookies_weak + html_issues
             issues_by_scan[int(s.id)] = {
                 "headers_missing": headers_missing,
                 "headers_weak": headers_weak,
                 "cookies_weak": cookies_weak,
+                "html_issues": html_issues,
                 "total": total_issues,
             }
         return templates.TemplateResponse(
@@ -76,9 +79,10 @@ def scan_detail(request: Request, scan_id: int):
         scan = session.get(Scan, scan_id)
         if not scan:
             raise HTTPException(status_code=404, detail="Scan not found")
-        from ...models.finding import CookieFinding, HeaderFinding
+        from ...models.finding import CookieFinding, HeaderFinding, HTMLFinding
         header_findings = session.exec(select(HeaderFinding).where(HeaderFinding.scan_id == scan.id)).all()
         cookie_findings = session.exec(select(CookieFinding).where(CookieFinding.scan_id == scan.id)).all()
+        html_findings = session.exec(select(HTMLFinding).where(HTMLFinding.scan_id == scan.id)).all()
         target = session.get(Target, scan.target_id)
         target_url = target.url if target else scan.target_id
         return templates.TemplateResponse(
@@ -88,6 +92,7 @@ def scan_detail(request: Request, scan_id: int):
                 "scan": scan,
                 "header_findings": header_findings,
                 "cookie_findings": cookie_findings,
+                "html_findings": html_findings,
                 "target_url": target_url,
                 "raw_meta": scan.raw_response_meta or {},
             },

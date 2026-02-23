@@ -42,6 +42,7 @@
           <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800" title="Number of required headers not present">Missing headers: {{ ib.get('headers_missing', 0) }}</span>
           <span class="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800" title="Headers present but too permissive or with weak values">Weak headers: {{ ib.get('headers_weak', 0) }}</span>
           <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800" title="Cookies without Secure/HttpOnly or SameSite issues">Cookie issues: {{ ib.get('cookies_weak', 0) }}</span>
+          <span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800" title="Mixed content and missing SRI findings in HTML">HTML issues: {{ ib.get('html_issues', 0) }}</span>
         </td>
         <td>
           <span class="px-2 py-0.5 rounded {{ 'bg-green-100 text-green-700' if s.tls_enforced else 'bg-red-100 text-red-700' }}" title="HTTPS available">{{ 'Yes' if s.tls_enforced else 'No' }}</span>

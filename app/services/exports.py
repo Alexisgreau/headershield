@@ -8,11 +8,16 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
-from ..models.finding import CookieFinding, HeaderFinding
+from ..models.finding import CookieFinding, HeaderFinding, HTMLFinding
 from ..models.scan import Scan
 
 
-def export_csv(scan: Scan, header_findings: list[HeaderFinding], cookie_findings: list[CookieFinding]) -> bytes:
+def export_csv(
+    scan: Scan,
+    header_findings: list[HeaderFinding],
+    cookie_findings: list[CookieFinding],
+    html_findings: list[HTMLFinding],
+) -> bytes:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([
@@ -24,15 +29,25 @@ def export_csv(scan: Scan, header_findings: list[HeaderFinding], cookie_findings
         "has_secure",
         "has_httponly",
         "samesite",
+        "html_finding_type",
+        "html_tag",
+        "html_details",
     ])
     for hf in header_findings:
-        writer.writerow([hf.header_name, hf.value or "", hf.status, hf.score_impact, "", "", "", ""])
+        writer.writerow([hf.header_name, hf.value or "", hf.status, hf.score_impact, "", "", "", "", "", "", ""])
     for cf in cookie_findings:
-        writer.writerow(["", "", cf.status, "", cf.cookie_name, cf.has_secure, cf.has_httponly, cf.samesite])
+        writer.writerow(["", "", cf.status, "", cf.cookie_name, cf.has_secure, cf.has_httponly, cf.samesite, "", "", ""])
+    for hf in html_findings:
+        writer.writerow(["", "", "HTML", hf.score_impact, "", "", "", "", hf.finding_type, hf.tag, hf.details])
     return buf.getvalue().encode("utf-8")
 
 
-def export_pdf(scan: Scan, header_findings: list[HeaderFinding], cookie_findings: list[CookieFinding]) -> bytes:
+def export_pdf(
+    scan: Scan,
+    header_findings: list[HeaderFinding],
+    cookie_findings: list[CookieFinding],
+    html_findings: list[HTMLFinding],
+) -> bytes:
     """PDF simple (ReportLab) avec échappement basique."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4)
@@ -67,6 +82,17 @@ def export_pdf(scan: Scan, header_findings: list[HeaderFinding], cookie_findings
         ))
         if cf.recommendation:
             elems.append(Paragraph(xml_escape(f"Recommendation: {cf.recommendation}"), styles["Code"]))
+        elems.append(Spacer(1, 6))
+
+    # HTML Findings
+    elems.append(Spacer(1, 12))
+    elems.append(Paragraph(xml_escape("HTML Findings"), styles["Heading2"]))
+    if not html_findings:
+        elems.append(Paragraph(xml_escape("No HTML findings."), styles["Normal"]))
+    for hf in html_findings:
+        elems.append(Paragraph(xml_escape(f"{hf.finding_type} on <{hf.tag}>: {hf.details}"), styles["Normal"]))
+        if hf.recommendation:
+            elems.append(Paragraph(xml_escape(f"Recommendation: {hf.recommendation}"), styles["Code"]))
         elems.append(Spacer(1, 6))
 
     # Meta brute

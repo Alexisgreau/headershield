@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 import logging
 from http.cookies import SimpleCookie
@@ -29,16 +30,13 @@ SECURITY_HEADERS = [
     "Cross-Origin-Resource-Policy",
     "Server",
     "X-Powered-By",
+    "X-Permitted-Cross-Domain-Policies",
+    "Clear-Site-Data",
 ]
 logger = logging.getLogger(__name__)
 
 
-async def scan_urls(urls: list[str]) -> dict[str, int]:
-    # pipeline simple: normalise -> fetch http/https -> score -> persist
-    clean_urls = [u for u in (sanitize_url(u) for u in urls) if u]
-    http = HTTPService()
-    results: dict[str, int] = {}
-    for url in clean_urls:
+async def _scan_one_url(url: str, http: HTTPService) -> tuple[str, int]:
         # find or create Target
         with get_session() as session:
             target_obj = session.exec(select(Target).where(Target.url == url)).first()
@@ -62,6 +60,8 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
         http_url = url.replace("https://", "http://") if url.startswith("https://") else url
         https_url = url if url.startswith("https://") else url.replace("http://", "https://")
 
+        resp_https = None
+        resp_http = None
         header_values: dict[str, str | None] = {}
         cookie_headers: list[str] = []
         http_redirects_to_https = False
@@ -232,7 +232,12 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
             scan_db.issues_count = issues
             scan_db.tls_enforced = bool(tls_ok)
             scan_db.http_to_https_redirect = bool(http_redirects_to_https)
-            scan_db.status = "SUCCESS"
+            if not raw_meta.get("https") and not raw_meta.get("http"):
+                scan_db.status = "FAIL"
+            elif not raw_meta.get("https"):
+                scan_db.status = "PARTIAL"
+            else:
+                scan_db.status = "SUCCESS"
             scan_db.finished_at = datetime.utcnow()
             scan_db.raw_response_meta = raw_meta
 
@@ -252,5 +257,21 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
             session.add(scan_db)
             session.commit()
 
-        results[url] = score
-    return results
+        return url, score
+
+
+async def scan_urls(urls: list[str]) -> dict[str, int]:
+    # pipeline: normalise -> fetch http/https -> score -> persist
+    clean_urls = [u for u in (sanitize_url(u) for u in urls) if u]
+    if not clean_urls:
+        return {}
+
+    http = HTTPService()
+    semaphore = asyncio.Semaphore(5)
+
+    async def _bounded_scan(url: str) -> tuple[str, int]:
+        async with semaphore:
+            return await _scan_one_url(url, http)
+
+    results = await asyncio.gather(*(_bounded_scan(url) for url in clean_urls))
+    return {url: score for url, score in results}
