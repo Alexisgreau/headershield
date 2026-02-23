@@ -1,25 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HeaderShield</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body class="bg-gray-50 text-gray-900">
-    <nav class="bg-white shadow mb-6">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <a href="/" class="text-xl font-semibold">HeaderShield</a>
-        <div class="space-x-4">
-          <a href="/" class="text-gray-700 hover:text-black">Dashboard</a>
-          <a href="/results" class="text-gray-700 hover:text-black">Results</a>
-        </div>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+        <a href="/" class="text-xl font-bold text-slate-900">🛡️ HeaderShield</a>
+        <nav class="flex items-center gap-2 text-sm">
+          <a href="/" class="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">Nouveau scan</a>
+          <a href="/results" class="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">Historique</a>
+          <a href="/api/v1/docs" class="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">API</a>
+        </nav>
       </div>
-    </nav>
-    <main class="max-w-6xl mx-auto px-4">
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8">
       {% block content %}{% endblock %}
     </main>
+
     <script src="/static/app.js"></script>
   </body>
-  </html>
-
+</html>

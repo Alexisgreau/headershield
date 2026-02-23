@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -40,8 +41,15 @@ def create_app() -> FastAPI:
     if os.path.exists("app/web/static"):
         app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
     
-    # ... le reste de votre middleware rate_limit est bon ...
-    
+    limiter = SimpleRateLimiter(settings.rate_limit_per_minute)
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next):
+        key = request.client.host if request.client else "unknown"
+        if not limiter.allow(key):
+            return JSONResponse(status_code=429, content={"error": "Too many requests"})
+        return await call_next(request)
+
     return app
 
 app = create_app()

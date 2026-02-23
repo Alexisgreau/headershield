@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from ...core.database import get_session
-from ...models.finding import CookieFinding, HeaderFinding
+from ...models.finding import CookieFinding, HeaderFinding, HTMLFinding
 from ...models.scan import Scan
 from ...schemas.scan import ScanRequest
 from ...services.scanner import scan_urls
@@ -40,6 +40,7 @@ def get_scan(scan_id: int):
         # findings chargés explicitement (pas de relationship auto pour éviter les soucis SQLAlchemy 2.x)
         header_findings = session.exec(select(HeaderFinding).where(HeaderFinding.scan_id == scan.id)).all()
         cookie_findings = session.exec(select(CookieFinding).where(CookieFinding.scan_id == scan.id)).all()
+        html_findings = session.exec(select(HTMLFinding).where(HTMLFinding.scan_id == scan.id)).all()
         # on renvoie une structure prête à consommer côté UI/API
         return {
             "id": scan.id,
@@ -71,6 +72,16 @@ def get_scan(scan_id: int):
                     "recommendation": cf.recommendation,
                 }
                 for cf in cookie_findings
+            ],
+            "html_findings": [
+                {
+                    "finding_type": hf.finding_type,
+                    "tag": hf.tag,
+                    "details": hf.details,
+                    "score_impact": hf.score_impact,
+                    "recommendation": hf.recommendation,
+                }
+                for hf in html_findings
             ],
             "raw_response_meta": scan.raw_response_meta,  # infos brutes (headers, history, tls, ...)
         }
