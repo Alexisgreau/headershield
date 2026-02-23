@@ -22,6 +22,7 @@ RULES: dict[str, dict[str, int | dict[str, int]]] = {
     "Redirect": {"no_https": 10},
     "InfoLeak": {"present": 2},
     "HTML": {"mixed-content": 4, "sri-missing": 2},
+    "LegacyPolicies": {"missing_x_permitted": 1, "weak_x_permitted": 1, "missing_clear_site_data": 1},
 }
 
 
@@ -152,6 +153,23 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
             return "PRESENT", RULES["InfoLeak"]["present"], details
         return "OK", 0, []
 
+    if header == "X-Permitted-Cross-Domain-Policies":
+        if value is None:
+            return "MISSING", RULES["LegacyPolicies"]["missing_x_permitted"], []
+        if value.lower().strip() not in {"none", "master-only"}:
+            return (
+                "WEAK",
+                RULES["LegacyPolicies"]["weak_x_permitted"],
+                [
+                    "Use 'none' (recommended) or 'master-only' to limit Adobe cross-domain policy exposure."
+                ],
+            )
+        return "OK", 0, []
+
+    if header == "Clear-Site-Data":
+        if value is None:
+            return "MISSING", RULES["LegacyPolicies"]["missing_clear_site_data"], []
+        return "OK", 0, []
+
     # Fallback for unhandled headers
     return "OK", 0, []
-
