@@ -37,73 +37,34 @@ SECURITY_HEADERS = [
 logger = logging.getLogger(__name__)
 
 
+def _get_or_create_target_id(session, url: str) -> int:
+    """Resolve a target id in a concurrency-safe way.
+
+    This function avoids relying on ORM instances outside of the transaction scope
+    and gracefully handles duplicate insert races.
+    """
+    target_id = session.exec(select(Target.id).where(Target.url == url)).first()
+    if target_id is not None:
+        return target_id
+
+    try:
+        target_obj = Target(url=url)
+        session.add(target_obj)
+        session.commit()
+        session.refresh(target_obj)
+        assert target_obj.id is not None
+        return target_obj.id
+    except IntegrityError:
+        session.rollback()
+        existing_id = session.exec(select(Target.id).where(Target.url == url)).first()
+        if existing_id is None:
+            raise
+        return existing_id
+
+
 async def _scan_one_url(url: str, http: HTTPService) -> tuple[str, int]:
     with get_session() as session:
-        target_obj = session.exec(select(Target).where(Target.url == url)).first()
-        if not target_obj:
-            target_obj = Target(url=url)
-            session.add(target_obj)
-            session.commit()
-            session.refresh(target_obj)
-        # find or create Target
-        with get_session() as session:
-            target_obj = session.exec(select(Target).where(Target.url == url)).first()
-            if not target_obj:
-                target_obj = Target(url=url)
-                session.add(target_obj)
-                session.commit()
-                session.refresh(target_obj)
-                assert target_obj.id is not None
-                target_id = target_obj.id
-            except IntegrityError:
-                session.rollback()
-                existing_id = session.exec(select(Target.id).where(Target.url == url)).first()
-                if existing_id is None:
-                    raise
-                target_id = existing_id
-
-            assert target_obj.id is not None
-            target_id = target_obj.id
-
-            scan_obj = Scan(target_id=target_id, status="RUNNING")
-            session.add(scan_obj)
-            session.commit()
-            session.refresh(scan_obj)
-            assert scan_obj.id is not None
-            scan_id = scan_obj.id
-
-        # Perform HTTP(S) checks (on tente https + http pour la redirection)
-        http_url = url.replace("https://", "http://") if url.startswith("https://") else url
-        https_url = url if url.startswith("https://") else url.replace("http://", "https://")
-
-        resp_https = None
-        resp_http = None
-        header_values: dict[str, str | None] = {}
-        cookie_headers: list[str] = []
-        http_redirects_to_https = False
-        tls_ok = False
-        raw_meta: dict[str, object] = {}
-        try:
-            # fetch HTTPS
-            resp_https, history_https, tls_version = await http.fetch(https_url)
-            tls_ok = resp_https is not None and resp_https.status_code < 599
-            raw_meta["https"] = {
-                "status": getattr(resp_https, "status_code", None),
-                "final_url": str(getattr(resp_https, "url", https_url)),
-                "history": history_https,
-                "tls_version": tls_version,
-                "headers": dict(getattr(resp_https, "headers", {})),
-            }
-            if resp_https is not None:
-                for h in SECURITY_HEADERS:
-                    header_values[h] = resp_https.headers.get(h)
-                cookie_headers.extend(resp_https.headers.get_list("set-cookie"))
-        except Exception as exc:
-            raw_meta["https_error"] = f"Failed to fetch {https_url}: {exc}"
-            logger.warning("HTTPS fetch failed for %s: %s", https_url, exc)
-
-        assert target_obj.id is not None
-        target_id = target_obj.id
+        target_id = _get_or_create_target_id(session, url)
 
         scan_obj = Scan(target_id=target_id, status="RUNNING")
         session.add(scan_obj)
@@ -314,59 +275,6 @@ async def _scan_one_url(url: str, http: HTTPService) -> tuple[str, int]:
 
 
 async def scan_urls(urls: list[str]) -> dict[str, int]:
-    clean_urls = [u for u in (sanitize_url(u) for u in urls) if u]
-    if not clean_urls:
-        return {}
-
-    http = HTTPService()
-    semaphore = asyncio.Semaphore(5)
-
-    async def _bounded_scan(url: str) -> tuple[str, int]:
-        async with semaphore:
-            return await _scan_one_url(url, http)
-
-        score = clamp(score)
-
-        # Save results
-        with get_session() as session:
-            target_db = session.get(Target, target_id)
-            assert target_db is not None
-            scan_db = session.get(Scan, scan_id)
-            assert scan_db is not None
-            scan_db.score_total = score
-            scan_db.issues_count = issues
-            scan_db.tls_enforced = bool(tls_ok)
-            scan_db.http_to_https_redirect = bool(http_redirects_to_https)
-            if not raw_meta.get("https") and not raw_meta.get("http"):
-                scan_db.status = "FAIL"
-            elif not raw_meta.get("https"):
-                scan_db.status = "PARTIAL"
-            else:
-                scan_db.status = "SUCCESS"
-            scan_db.finished_at = datetime.utcnow()
-            scan_db.raw_response_meta = raw_meta
-
-            for hf in header_findings:
-                hf.scan_id = scan_db.id  # type: ignore[arg-type]
-                session.add(hf)
-            for cf in cookie_findings:
-                cf.scan_id = scan_db.id  # type: ignore[arg-type]
-                session.add(cf)
-
-            for html_f in html_findings:
-                html_f.scan_id = scan_db.id  # type: ignore[arg-type]
-                session.add(html_f)
-
-            target_db.last_scanned_at = scan_db.finished_at
-            session.add(target_db)
-            session.add(scan_db)
-            session.commit()
-
-        return url, score
-
-
-async def scan_urls(urls: list[str]) -> dict[str, int]:
-    # pipeline: normalise -> fetch http/https -> score -> persist
     clean_urls = [u for u in (sanitize_url(u) for u in urls) if u]
     if not clean_urls:
         return {}

@@ -25,7 +25,6 @@ RULES: dict[str, dict[str, int | dict[str, int]]] = {
     # Legacy headers are informative by default: they do not penalize if absent,
     # but still penalize weak values when provided.
     "LegacyPolicies": {"weak_x_permitted": 1},
-    "LegacyPolicies": {"missing_x_permitted": 1, "weak_x_permitted": 1, "missing_clear_site_data": 1},
 }
 
 
