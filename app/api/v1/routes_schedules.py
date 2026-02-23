@@ -2,20 +2,11 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, HTTPException
-from sqlmodel import select, SQLModel
-
-from ...core.database import get_session
-from ...models.schedule import Schedule
-from ...models.target import Target
-from ...services.scheduler import _cron_to_dict, job_scan_target, scheduler
+from ...schemas.schedule import ScheduleCreate, ScheduleRead
 
 router = APIRouter(prefix="/schedules", tags=["schedules"])
 
-class ScheduleCreate(SQLModel):
-    target_id: int
-    cron: str # e.g., "0 2 * * *" for 2 AM daily
-
-@router.post("/", response_model=Schedule)
+@router.post("/", response_model=ScheduleRead)
 def create_schedule(schedule_data: ScheduleCreate):
     """Create a new scan schedule."""
     with get_session() as session:
@@ -47,7 +38,7 @@ def create_schedule(schedule_data: ScheduleCreate):
 
         return schedule
 
-@router.get("/", response_model=List[Schedule])
+@router.get("/", response_model=List[ScheduleRead])
 def list_schedules():
     """List all schedules."""
     with get_session() as session:
