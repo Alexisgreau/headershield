@@ -22,6 +22,9 @@ RULES: dict[str, dict[str, int | dict[str, int]]] = {
     "Redirect": {"no_https": 10},
     "InfoLeak": {"present": 2},
     "HTML": {"mixed-content": 4, "sri-missing": 2},
+    # Legacy headers are informative by default: they do not penalize if absent,
+    # but still penalize weak values when provided.
+    "LegacyPolicies": {"weak_x_permitted": 1},
     "LegacyPolicies": {"missing_x_permitted": 1, "weak_x_permitted": 1, "missing_clear_site_data": 1},
 }
 
@@ -37,18 +40,21 @@ def evaluate_csp(value: str | None) -> tuple[int, list[str]]:
         return 0, []
 
     penalty = 0
-    weaknesses = []
-    
-    # Simple parsing logic for CSP directives
-    # This is a basic parser and might not handle all edge cases.
-    directives = {
-        d.strip().split(maxsplit=1)[0].lower(): d.strip().split(maxsplit=1)[1]
-        for d in value.split(';')
-        if d.strip()
-    }
+    weaknesses: list[str] = []
+
+    # Robust parsing: tolerate directives without a value (e.g. "upgrade-insecure-requests").
+    directives: dict[str, str] = {}
+    for directive in value.split(";"):
+        item = directive.strip()
+        if not item:
+            continue
+        parts = item.split(maxsplit=1)
+        key = parts[0].lower()
+        val = parts[1] if len(parts) > 1 else ""
+        directives[key] = val
 
     script_src = directives.get("script-src", directives.get("default-src", ""))
-    
+
     # Check for unsafe-inline in script-src
     if "'unsafe-inline'" in script_src and "'nonce-" not in script_src and "'sha" not in script_src:
         penalty += RULES["CSP"]["weaknesses"]["script-src-unsafe-inline"]
@@ -85,25 +91,24 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
     if header == "Content-Security-Policy":
         if not value:
             return "MISSING", RULES["CSP"]["missing"], ["Content-Security-Policy header is missing."]
-        
+
         penalty, details = evaluate_csp(value)
         if penalty > 0:
             return "WEAK", penalty, details
         return "OK", 0, []
-        
-    details: list[str] = []  # Default empty details
-    
+
+    details: list[str] = []
+
     if header == "Strict-Transport-Security":
         if value is None:
             return "MISSING", RULES["HSTS"]["missing"], []
         v = value.lower()
         try:
-            # Basic parsing, might not be perfect
-            parts = {p.split('=', 1)[0].strip(): p.split('=', 1)[1].strip() if '=' in p else True for p in v.split(';')}
+            parts = {p.split("=", 1)[0].strip(): p.split("=", 1)[1].strip() if "=" in p else True for p in v.split(";")}
             max_age = int(parts.get("max-age", "0"))
         except (ValueError, IndexError):
             max_age = 0
-        if max_age < 15552000: # 6 months
+        if max_age < 15552000:
             details = [f"HSTS max-age is {max_age}s, which is less than the recommended 6 months (15552000s)."]
             return "WEAK", RULES["HSTS"]["weak"], details
         return "OK", 0, []
@@ -137,7 +142,7 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
     if header == "Permissions-Policy":
         if value is None:
             return "MISSING", RULES["Permissions"]["missing"], []
-        if "*" in value: # Simple heuristic
+        if "*" in value:
             details = ["Permissions-Policy contains a wildcard '*' which is overly permissive. Define fine-grained policies instead."]
             return "WEAK", RULES["Permissions"]["weak"], details
         return "OK", 0, []
@@ -155,11 +160,13 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
 
     if header == "X-Permitted-Cross-Domain-Policies":
         if value is None:
+            return "INFO", 0, []
             return "MISSING", RULES["LegacyPolicies"]["missing_x_permitted"], []
         if value.lower().strip() not in {"none", "master-only"}:
             return (
                 "WEAK",
                 RULES["LegacyPolicies"]["weak_x_permitted"],
+                ["Use 'none' (recommended) or 'master-only' to limit Adobe cross-domain policy exposure."],
                 [
                     "Use 'none' (recommended) or 'master-only' to limit Adobe cross-domain policy exposure."
                 ],
@@ -167,6 +174,11 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
         return "OK", 0, []
 
     if header == "Clear-Site-Data":
+        # Informative: useful for logout/privacy workflows but not universally required.
+        if value is None:
+            return "INFO", 0, []
+        return "OK", 0, []
+
         if value is None:
             return "MISSING", RULES["LegacyPolicies"]["missing_clear_site_data"], []
         return "OK", 0, []

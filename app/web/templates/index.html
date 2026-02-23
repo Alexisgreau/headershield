@@ -1,18 +1,42 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="bg-white p-6 rounded shadow">
-  <h1 class="text-2xl font-semibold mb-4">Scan URLs</h1>
-  <form method="post" action="/scan" class="space-y-4">
-    <div>
-      <label class="block text-sm text-gray-600 mb-1">Enter URLs (one per line)</label>
-      <textarea name="urls" rows="6" class="w-full border rounded p-2" placeholder="https://example.com
-https://owasp.org"></textarea>
-    </div>
-    <div class="flex items-center gap-3">
-      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Scan</button>
-      <span class="text-sm text-gray-500">or upload a .txt/.csv via API POST /api/v1/upload-urls</span>
-    </div>
-  </form>
-</div>
-{% endblock %}
+<section class="grid gap-6 lg:grid-cols-3">
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+    <h1 class="mb-2 text-2xl font-bold">Lancer un scan de sécurité</h1>
+    <p class="mb-5 text-sm text-slate-600">
+      Colle une ou plusieurs URLs (une par ligne). HeaderShield vérifiera les headers, les cookies, TLS/redirect,
+      et les problèmes HTML (mixed-content, SRI).
+    </p>
 
+    <form method="post" action="/scan" class="space-y-4">
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">URLs à scanner</label>
+        <textarea
+          name="urls"
+          rows="8"
+          class="w-full rounded-xl border border-slate-300 p-3 font-mono text-sm outline-none ring-blue-500 focus:ring"
+          placeholder="https://example.com&#10;https://owasp.org"
+        ></textarea>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+          Démarrer le scan
+        </button>
+        <span class="text-xs text-slate-500">Tu peux aussi envoyer un fichier via <code>POST /api/v1/upload-urls</code>.</span>
+      </div>
+    </form>
+  </div>
+
+  <aside class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="mb-3 text-lg font-semibold">Comment lire le score ?</h2>
+    <ul class="space-y-2 text-sm text-slate-600">
+      <li><span class="font-semibold text-emerald-700">80–100</span> : Très bon niveau global.</li>
+      <li><span class="font-semibold text-amber-700">50–79</span> : Des améliorations sont nécessaires.</li>
+      <li><span class="font-semibold text-rose-700">0–49</span> : Risques importants détectés.</li>
+    </ul>
+    <p class="mt-4 text-xs text-slate-500">
+      Le score part de 100, puis applique des pénalités/bonus selon la configuration détectée.
+    </p>
+  </aside>
+</section>
+{% endblock %}

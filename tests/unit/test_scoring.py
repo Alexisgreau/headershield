@@ -14,6 +14,15 @@ def test_csp_missing_and_weak():
     assert details2
 
 
+def test_csp_parser_tolerates_directives_without_value():
+    status, penalty, _ = evaluate_header(
+        "Content-Security-Policy",
+        "default-src 'self'; upgrade-insecure-requests; object-src 'none'; base-uri 'self'",
+    )
+    assert status in {"OK", "WEAK"}
+    assert penalty >= 0
+
+
 def test_hsts_parsing():
     ok = evaluate_header("Strict-Transport-Security", "max-age=15552000; includeSubDomains; preload")
     assert ok[0] == "OK" and ok[1] == 0
@@ -29,6 +38,9 @@ def test_x_content_type_options():
     assert p2 > 0
 
 
+def test_legacy_headers_are_informative_by_default():
+    missing_policy = evaluate_header("X-Permitted-Cross-Domain-Policies", None)
+    assert missing_policy[0] == "INFO" and missing_policy[1] == 0
 def test_new_legacy_headers_rules():
     missing_policy = evaluate_header("X-Permitted-Cross-Domain-Policies", None)
     assert missing_policy[0] == "MISSING" and missing_policy[1] > 0
@@ -37,6 +49,7 @@ def test_new_legacy_headers_rules():
     assert weak_policy[0] == "WEAK" and weak_policy[1] > 0
 
     clear_site_data_missing = evaluate_header("Clear-Site-Data", None)
+    assert clear_site_data_missing[0] == "INFO" and clear_site_data_missing[1] == 0
     assert clear_site_data_missing[0] == "MISSING" and clear_site_data_missing[1] > 0
 
 
