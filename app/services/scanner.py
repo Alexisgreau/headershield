@@ -7,11 +7,12 @@ from http.cookies import SimpleCookie
 from sqlmodel import select
 
 from ..core.database import get_session
-from ..models.finding import CookieFinding, HeaderFinding
+from ..models.finding import CookieFinding, HeaderFinding, HTMLFinding
 from ..models.scan import Scan
 from ..models.target import Target
 from .http_client import HTTPService
-from .recommendations import recommendation_for
+from .html_parser import analyze_html
+from .recommendations import recommendation_for, recommendation_for_html
 from .scoring import RULES, clamp, evaluate_header
 from .utils import sanitize_url
 
@@ -104,19 +105,46 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
         score = 100
         issues = 0
         header_findings: list[HeaderFinding] = []
+        html_findings: list[HTMLFinding] = []
+
+        # HTML Body Analysis (only on successful HTTPS response with html content)
+        if resp_https and "text/html" in resp_https.headers.get("Content-Type", ""):
+            html_body = resp_https.text
+            html_issues = analyze_html(html_body, str(resp_https.url))
+            for f_type, tag, details in html_issues:
+                penalty = RULES["HTML"][f_type]
+                score -= penalty
+                issues += 1
+                rec = recommendation_for_html(f_type)
+                html_findings.append(
+                    HTMLFinding(
+                        finding_type=f_type,
+                        tag=tag,
+                        details=details,
+                        score_impact=penalty,
+                        recommendation=rec,
+                    )
+                )
 
         for h in SECURITY_HEADERS:
-            status, penalty = evaluate_header(h, header_values.get(h))
+            status, penalty, details = evaluate_header(h, header_values.get(h))
             if penalty > 0:
                 issues += 1
+
+            # Combine generic recommendation with specific details
             rec = recommendation_for(h) if status != "OK" else ""
+            if details:
+                full_rec = f"{rec}\nDETAILS: {' '.join(details)}".strip()
+            else:
+                full_rec = rec
+
             header_findings.append(
                 HeaderFinding(
                     header_name=h,
                     value=header_values.get(h),
                     status=status,
                     score_impact=penalty,
-                    recommendation=rec,
+                    recommendation=full_rec,
                 )
             )
             score -= penalty
@@ -214,6 +242,10 @@ async def scan_urls(urls: list[str]) -> dict[str, int]:
             for cf in cookie_findings:
                 cf.scan_id = scan_db.id  # type: ignore[arg-type]
                 session.add(cf)
+
+            for html_f in html_findings:
+                html_f.scan_id = scan_db.id  # type: ignore[arg-type]
+                session.add(html_f)
 
             target_db.last_scanned_at = scan_db.finished_at
             session.add(target_db)

@@ -1,21 +1,17 @@
-from __future__ import annotations
-
+from typing import List, Optional
 from datetime import datetime
+from sqlmodel import Field, Relationship, SQLModel
+
 from typing import TYPE_CHECKING
-
-from sqlmodel import Field, SQLModel, UniqueConstraint
-
+if TYPE_CHECKING:
+    from .schedule import Schedule
 
 class Target(SQLModel, table=True):
     __tablename__ = "targets"
-    __table_args__ = (UniqueConstraint("url", name="uq_target_url"),)
 
-    id: int | None = Field(default=None, primary_key=True)
-    url: str = Field(index=True)
-    last_scanned_at: datetime | None = Field(default=None, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    url: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_scanned_at: Optional[datetime] = None
 
-    # relationship removed to avoid registry resolution issues; access via explicit queries
-
-
-if TYPE_CHECKING:  # only for type hints
-    from .scan import Scan  # noqa: F401
+    schedules: List["Schedule"] = Relationship(back_populates="target")

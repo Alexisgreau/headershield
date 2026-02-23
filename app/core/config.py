@@ -1,36 +1,47 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
+import secrets
 
-from pydantic import BaseModel
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseModel):
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="HS_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
     app_name: str = "headershield"
     debug: bool = False
-    database_url: str = "sqlite:///data/headershield.db"
+
+    # The secret key is critical for session security.
+    # It defaults to a new random value on each start,
+    # but for production, it should be set to a stable value in the environment.
+    secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
+
+    # This field will be populated by the HS_DB_PATH env var
+    db_path: Path | None = None
+    database_url: str = ""
+
     rate_limit_per_minute: int = 30
     request_timeout_seconds: int = 10
     retries: int = 3
 
+    @field_validator("database_url", mode="before")
     @classmethod
-    def load(cls) -> Settings:
-        db_path = os.getenv("HS_DB_PATH")
+    def assemble_db_connection(cls, v: str | None, values) -> str:
+        if isinstance(v, str) and v:
+            return v
+
+        db_path = values.data.get("db_path")
         if db_path:
-            # normalise le chemin Windows -> style URI sqlite et crée le dossier
-            p = Path(db_path)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            database_url = f"sqlite:///{p.as_posix()}"
+            path = Path(db_path)
         else:
-            # fallback par défaut: ./data/headershield.db
-            default_rel = Path("data") / "headershield.db"
-            default_rel.parent.mkdir(parents=True, exist_ok=True)
-            database_url = f"sqlite:///{default_rel.as_posix()}"
-        return cls(
-            debug=os.getenv("HS_DEBUG", "0") == "1",
-            database_url=database_url,
-        )
+            path = Path("data") / "headershield.db"
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{path.as_posix()}"
 
 
-settings = Settings.load()
+settings = Settings()

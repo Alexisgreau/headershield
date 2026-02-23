@@ -10,6 +10,8 @@ NGINX_SNIPPETS = {
     "coop": "add_header Cross-Origin-Opener-Policy same-origin always;",
     "coep": "add_header Cross-Origin-Embedder-Policy require-corp always;",
     "corp": "add_header Cross-Origin-Resource-Policy same-site always;",
+    "server": "In nginx.conf http block: server_tokens off;",
+    "xpb": "For FastCGI: fastcgi_hide_header X-Powered-By; For proxies: proxy_hide_header X-Powered-By;",
 }
 
 APACHE_SNIPPETS = {
@@ -22,6 +24,8 @@ APACHE_SNIPPETS = {
     "coop": "Header always set Cross-Origin-Opener-Policy same-origin",
     "coep": "Header always set Cross-Origin-Embedder-Policy require-corp",
     "corp": "Header always set Cross-Origin-Resource-Policy same-site",
+    "server": "In httpd.conf: ServerTokens Prod",
+    "xpb": "Header unset X-Powered-By",
 }
 
 
@@ -43,6 +47,8 @@ def recommendation_for(header: str) -> str:
         "Cross-Origin-Opener-Policy": "coop",
         "Cross-Origin-Embedder-Policy": "coep",
         "Cross-Origin-Resource-Policy": "corp",
+        "Server": "server",
+        "X-Powered-By": "xpb",
     }
     k = keymap.get(header)
     if not k:
@@ -52,4 +58,13 @@ def recommendation_for(header: str) -> str:
         f"Apache: {APACHE_SNIPPETS[k]}\n"
         + ("CSP example: " + csp_example() if k == "csp" else "")
     )
+
+HTML_RECOMMENDATIONS = {
+    "mixed-content": "Serve all content over HTTPS to prevent attackers from intercepting or modifying it.",
+    "sri-missing": "Add a Subresource Integrity (SRI) hash to external scripts and stylesheets. This ensures the file has not been tampered with.",
+}
+
+def recommendation_for_html(finding_type: str) -> str:
+    """Returns a recommendation for a given HTML finding type."""
+    return HTML_RECOMMENDATIONS.get(finding_type, "")
 
