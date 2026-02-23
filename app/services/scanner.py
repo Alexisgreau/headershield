@@ -5,6 +5,7 @@ from datetime import datetime
 import logging
 from http.cookies import SimpleCookie
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from ..core.database import get_session
@@ -52,6 +53,14 @@ async def _scan_one_url(url: str, http: HTTPService) -> tuple[str, int]:
                 session.add(target_obj)
                 session.commit()
                 session.refresh(target_obj)
+                assert target_obj.id is not None
+                target_id = target_obj.id
+            except IntegrityError:
+                session.rollback()
+                existing_id = session.exec(select(Target.id).where(Target.url == url)).first()
+                if existing_id is None:
+                    raise
+                target_id = existing_id
 
             assert target_obj.id is not None
             target_id = target_obj.id

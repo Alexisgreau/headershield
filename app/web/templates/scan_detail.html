@@ -72,6 +72,9 @@
         <div>
           <span class="px-2 py-1 rounded bg-purple-100 text-purple-700">-{{ f.score_impact }}</span>
         </div>
+        {% if f.recommendation %}
+        <pre class="mt-2 overflow-x-auto rounded bg-slate-50 p-2 text-xs">{{ f.recommendation }}</pre>
+        {% endif %}
       </div>
       {% if f.recommendation %}
       <pre class="bg-gray-100 p-2 rounded mt-2 text-xs overflow-x-auto">{{ f.recommendation }}</pre>
