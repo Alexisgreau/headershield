@@ -10,4 +10,5 @@ python-dotenv
 python-multipart
 reportlab
 sqlmodel
+typer[all]
 uvicorn

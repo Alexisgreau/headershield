@@ -41,12 +41,16 @@ def test_x_content_type_options():
 def test_legacy_headers_are_informative_by_default():
     missing_policy = evaluate_header("X-Permitted-Cross-Domain-Policies", None)
     assert missing_policy[0] == "INFO" and missing_policy[1] == 0
+def test_new_legacy_headers_rules():
+    missing_policy = evaluate_header("X-Permitted-Cross-Domain-Policies", None)
+    assert missing_policy[0] == "MISSING" and missing_policy[1] > 0
 
     weak_policy = evaluate_header("X-Permitted-Cross-Domain-Policies", "all")
     assert weak_policy[0] == "WEAK" and weak_policy[1] > 0
 
     clear_site_data_missing = evaluate_header("Clear-Site-Data", None)
     assert clear_site_data_missing[0] == "INFO" and clear_site_data_missing[1] == 0
+    assert clear_site_data_missing[0] == "MISSING" and clear_site_data_missing[1] > 0
 
 
 def test_clamp():
