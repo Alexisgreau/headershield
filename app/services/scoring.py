@@ -25,6 +25,7 @@ RULES: dict[str, dict[str, int | dict[str, int]]] = {
     # Legacy headers are informative by default: they do not penalize if absent,
     # but still penalize weak values when provided.
     "LegacyPolicies": {"weak_x_permitted": 1},
+    "LegacyPolicies": {"missing_x_permitted": 1, "weak_x_permitted": 1, "missing_clear_site_data": 1},
 }
 
 
@@ -160,11 +161,15 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
     if header == "X-Permitted-Cross-Domain-Policies":
         if value is None:
             return "INFO", 0, []
+            return "MISSING", RULES["LegacyPolicies"]["missing_x_permitted"], []
         if value.lower().strip() not in {"none", "master-only"}:
             return (
                 "WEAK",
                 RULES["LegacyPolicies"]["weak_x_permitted"],
                 ["Use 'none' (recommended) or 'master-only' to limit Adobe cross-domain policy exposure."],
+                [
+                    "Use 'none' (recommended) or 'master-only' to limit Adobe cross-domain policy exposure."
+                ],
             )
         return "OK", 0, []
 
@@ -174,4 +179,9 @@ def evaluate_header(header: str, value: str | None) -> tuple[str, int, list[str]
             return "INFO", 0, []
         return "OK", 0, []
 
+        if value is None:
+            return "MISSING", RULES["LegacyPolicies"]["missing_clear_site_data"], []
+        return "OK", 0, []
+
+    # Fallback for unhandled headers
     return "OK", 0, []
